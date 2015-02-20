@@ -1,0 +1,134 @@
+Сокеты-конечная точка сетевых коммуникаций
+Сокет идентифицируется дескриптером (int)
+
+Атрибуты сокета
+Домен:
+	Локальный сокет (средство связи на 1 компьютери)
+	Сетевой сокет (internet-домен IPv4)
+Тип:
+	С установкой соединения (наиболее широкоиспользуемый, доходит 100%)
+	без установки соединения (высокая скорость, возможна потеря данных)
+	Низкоуровневый
+Протокол:
+	TCP (по умолчанию с установкой соединения)
+	UDP (по умолчанию без установки соединения)
+	Низкоуровневое задание протокола
+
+Создание сокета
+#include <sys/types.h>
+#include <sys/socket.h>
+int socket(int domain, int type, int protectol)
+int domain
+	AF_UNIX
+	AF_INET
+int type
+	SOCK_STREAM
+	SOCK_DGRAM
+	SOCK_RAW
+int protocol
+	0 (by default)
+
+Адреса
+Unix-домен  - текстовая строка - имя файла, через который происходит обмен данными
+Internet-домен - комбинация IP-адреса и номера порта
+
+Связывание сокета
+int bind(int sockfd, struct sockaddr *addr, int addrlen - length of addr)
+struct sockaddr {
+	unsigned sa_family;
+	
+};
+struct sockaddr_in {
+	short int sin_family; //семейство адресов
+	unsigned short int sin_port; //номер порта
+	struct in_addr sin_addr; //IP-адрес	
+	unsigned char sin_zero[8]; //дополнение
+};
+
+Порядок хранения байтов
+htons host TO network Short
+htonl host To Network Long
+ntohs Network To Host Short
+ntohl Network To Host Long
+
+Установка соединения (сервер)
+Создание сокета
+Привязка в локальному адресу (INADDR_ANY - любой локальный адрес, 0 - любой порт)
+Запустить ожидание запросов
+Обслуживание поступивших запросов
+Закрытие
+
+Установка соединения (Сервер)
+Создание сокета
+Привязка к локальному адресу (INADDR_ANY - любой локальный адрес, 0 - любой порт)
+Запустить ожидание запросов
+Обслуживание поступивших запросов
+
+Режим ожидания запросов
+int listen(int sockfd - дескриптор сокета, int backlog - размер очереди запросов);
+
+Обслуживание запросов
+int accept(int sockfd, void *addr, int *addrlen);
+создает новый сокет для общения с клиентом и возвращает его дескриптор
+sockfd - дескриптор слушающего сокета
+addr - адрес сокета клиента
+addrlen - размер структуры (длина, которая реально была использована) 
+fd, NULL, NULL
+
+Установка соединения (клиент)
+int connect(int sockfd, struct sockaddr *serv_addr, int addrlen)
+функция сама привязывает сокет к адрусу
+sockfd - дескприптор сокета для обмена данными с сервером
+serv_addr - указатель на структуру с адресом сервера 
+addrlen - длина этой структуры
+
+Обмен данными
+send(),recv()
+read(), write() - не желательно
+
+int send(int sockfd - дескриптор, const void *msg - указатель на буфер данных, int len - длина буфера в байтах, int flags - набор битовых флагов);
+возвращает число байтов, которые реально были отправлены (или -1 в случае ошибки)
+
+int sendall(int s, char *buf, int len, int flags) {
+	int total=0;
+	int n;
+	while (total<len) {
+		n=send(s, buf+total, len-total, flags);
+		if (n==-1) { break; }
+		total += n;
+	}
+	return (n==-1 ? -1 : total); 
+};
+
+Чтение данных
+int recv(int sockfd, void *buf, int len, int flags);
+Все аналогично send()
+Если соединение разорвано - возвращает 0
+
+Закрытие сокета
+int close(int fd);
+int shutdown(int sockfd, int how);
+how : 
+	0 - запретить чтение из сокета
+	1 - запретить запись в сокет
+	2 - запретить и то и другое
+
+Интерфейс внутренней петли
+Константа INADDR_LOOPBACK <- 127.0.0.1
+
+
+sudo ifconfig - адрес компьютера
+scp IP_ADD: ~/S14.pdf ~/
+ssh ...
+
+Обмен датаграммами
+Создать сокет
+Привязать адрес
+Отправить/Принять
+
+int sendto(int sockfd, const void *msg, int len, unsigned int flags, const struct sockaddr *to, int tolen);
+int recvfrom(int sockfd, void *buf, int len, unsigned int flags, const struct sockaddr *from, int *tolen);
+Проверки нет
+
+Преобразование IP-адреса
+inet_aton(const char *cp, struct in_addr *inp);
