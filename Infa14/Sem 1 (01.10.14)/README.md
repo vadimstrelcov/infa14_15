@@ -13,4 +13,5 @@ main2.cpp
 pipe, fork
 
 g++ main.cpp -o main2
+
 ./main2
