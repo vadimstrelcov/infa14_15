@@ -1,0 +1,15 @@
+Vector3d
++,-,*,==
+
+Дружественная функция - функция, которая не является методом данного класса, но имеет доступ к переменным, инкапсулирунным этим классом
+
+int sum(Vector3d X, Vector3d Y); // пишется вне класса
+friend int sum(Vector3d X, Vector3d Y); // пишется внутри класса
+
+friend vector operator + (Vector3d X, Vector3d Y);
+a=b+c; // a - result, X=b, Y=c;
+
+Операторы <<, >>
+<<: std::ostream & operator << (std::ostream A, Vector3d B);
+>>: std::istream & operator >> (std::istream A, Vector3d B); 
+
