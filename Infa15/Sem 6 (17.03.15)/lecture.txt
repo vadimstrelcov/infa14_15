@@ -1,0 +1,12 @@
+class1 int a, int b;
+class1()
+int method1() return a+b;
+class2 double a,b;
+double method2() return a+b;
+
+Шаблоны
+Class <int> A;
+
+Task 5
+В namespace Math используя шаблоны реализовать Vectors<type, int>, Complex<type>, matrix<type, int, int>. Вот всех случаях использовать friend operator. Также реализовать вывод элемента на экран и его норму.
+
