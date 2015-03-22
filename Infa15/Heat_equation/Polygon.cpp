@@ -396,7 +396,7 @@ void Polygon::get_partition() {
 				if (j<n_x-1) {
 					this->vect_rectangle[i][j].status=((vect_is_in_shape[i][j]) || (vect_is_in_shape[i][j+1])) ? 2 : 0;
 				} else {
-					this->vect_rectangle[i][j].status=0;
+					this->vect_rectangle[i][j].status=vect_is_in_shape[i][j];
 				}
 			}
 		}
@@ -453,7 +453,7 @@ void Polygon::get_partition() {
 		for (int i=n_y-1;i>=0;i--) {
 			for (int j=0;j<n_x;j++) {
 				if (this->vect_rectangle[i][j].status==1) {
-					fprintf(this->file_log, "%d ",(int)this->vect_rectangle[i][j].type);
+					fprintf(this->file_log, "%d ", (int)this->vect_rectangle[i][j].type);
 				} else {
 					fprintf(this->file_log, "9 ");
 				}
@@ -467,7 +467,7 @@ void Polygon::get_partition() {
 		for (int i=n_y-1;i>=0;i--) {
 			for (int j=0;j<n_x;j++) {
 				if (this->vect_rectangle[i][j].status==1 && this->vect_rectangle[i][j].type!=2) {
-					fprintf(this->file_log, "%.1lf ",this->vect_rectangle[i][j].value);
+					fprintf(this->file_log, "%.1lf ", this->vect_rectangle[i][j].value);
 				} else {
 					fprintf(this->file_log, "999 ");
 				}
