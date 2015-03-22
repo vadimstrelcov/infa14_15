@@ -211,11 +211,10 @@ Polygon::Polygon(const char* file_name, const int N_x, const int N_y, const int 
 		if (this->log) {
 			fprintf(this->file_log, "Vect_edges after sort:\n");
 			for (int index=0;index<this->number_edges;index++) {
-				fprintf(this->file_log, "(%.3lf;%.3lf)->(%.3lf;%.3lf)\n",this->vect_edges[index].first.x, this->vect_edges[index].first.y,
-					this->vect_edges[index].second.x, this->vect_edges[index].second.y);
+				fprintf(this->file_log, "(%.3lf;%.3lf)->(%.3lf;%.3lf) type=%d value=%.3lf\n",this->vect_edges[index].first.x, this->vect_edges[index].first.y,
+					this->vect_edges[index].second.x, this->vect_edges[index].second.y, this->vect_edges[index].type, this->vect_edges[index].value);
 			}
 		}
-
 
 		//we need equation of that lines
         for (int index=0;index<this->number_edges-1;index++) {
@@ -230,7 +229,7 @@ Polygon::Polygon(const char* file_name, const int N_x, const int N_y, const int 
 		this->h_t=this->time_max/N_t;
 		if (this->log) {
 			fprintf(this->file_log, "Temperature_initial=%lf\n",this->temperature_initial);
-			fprintf(this->file_log, "Time_max=%lf\n",this->time_max);
+			fprintf(this->file_log, "Time_max=%lf dt=%lf\n",this->time_max, this->h_t);
 		}
 
 		int number_events;
@@ -433,10 +432,10 @@ void Polygon::get_partition() {
 		for (int j=0;j<n_x;j++) {
 			if (this->vect_rectangle[i][j].status==1) {
 				double minl=1.0e+100;
-				int index=0;
+				int index=-1;
 				for (int k=0;k<this->number_edges;k++) {
-					Point2D D(this->min_x+j*this->h_x, this->min_y+j*this->h_y);
-					double tmp_length=fabs(this->vect_lines[k].a*D.x+this->vect_lines[k].b*D.y+this->vect_lines[k].c)/(this->vect_lines[k].a*this->vect_lines[k].a+this->vect_lines[k].b*this->vect_lines[k].b);
+					Point2D D(this->min_x+j*this->h_x, this->min_y+i*this->h_y);
+					double tmp_length=fabs(this->vect_lines[k].a*D.x+this->vect_lines[k].b*D.y+this->vect_lines[k].c)/sqrt(this->vect_lines[k].a*this->vect_lines[k].a+this->vect_lines[k].b*this->vect_lines[k].b);
 					if (minl-tmp_length>-epsilon) {
 						index=k;
 						minl=tmp_length;
@@ -444,6 +443,7 @@ void Polygon::get_partition() {
 				}
 				this->vect_rectangle[i][j].type=this->vect_edges[index].type;
 				this->vect_rectangle[i][j].value=this->vect_edges[index].value;
+				this->vect_rectangle[i][j].index_line=index;
 			}
 		}
 	}
@@ -475,21 +475,232 @@ void Polygon::get_partition() {
 			fprintf(this->file_log, "\n");
 		}
 	}
+
+	if (this->log) {
+		fclose(this->file_log);
+	}
 }
 
-void get_tmp_solve(vector<vector<double> >* A, vector<vector<double> >* B, bool flag) {
+void Tridiagonal_matrix_algo(vector<double>* A, vector<double>* B, vector<double>* C, vector<double>* F, vector<double>* answer) {
+	int SIZE=(int)A->size();
+	vector<double> CC, FF;
+	CC.push_back(C->front());
+	FF.push_back(F->front());
+	for (int i=1;i<SIZE;i++) {
+		CC.push_back((*C)[i]-(*A)[i]*(*B)[i-1]/CC[i-1]);
+		FF.push_back((*F)[i]-(*A)[i]*FF[i-1]/CC[i-1]);
+	}
+	if (fabs(CC.back())<epsilon) {
+		fprintf(stderr, "Tridiagonal matrix algo: division by zero\n");
+		exit(1);
+	}
+	(*answer)[SIZE-1]=FF.back()/CC.back();
+	for (int i=SIZE-2;i>=0;i--) {
+		if (fabs(CC[i])<epsilon) {
+			fprintf(stderr, "Tridiagonal matrix algo: division by zero\n");
+			exit(1);
+		}
+		(*answer)[i]=(FF[i]-(*B)[i]*(*answer)[i+1])/CC[i];
+	}
+}
 
+bool is_in_rectangle(Point2D* point, double x, double y, double h_x, double h_y) {
+	return (point->x>=x && point->x<x+h_x && point->y>=y && point->y<y+h_y);
+}
+
+void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double> >* U_2, double tau, bool flag) {
+	if (flag==0) { //OX
+        for (int i=0;i<this->n_y;i++) {
+			int j=0, index_from, index_to, J=0;
+			while (j<this->n_x) {
+				//find first not zero
+				for (;j<this->n_x && this->vect_rectangle[i][j].status==0;j++);
+				if (j==this->n_x-1) {
+					//empty
+					for (int tmp_j=J;tmp_j<j;tmp_j++) {
+						(*U_2)[i][tmp_j]=this->temperature_air;
+					}
+				} else {
+					index_from=j;
+					//printf("%d %d\n",i,j);
+					//find zero
+					for (;j<this->n_x && this->vect_rectangle[i][j].status!=0;j++);
+					index_to=j-1;
+					//printf("index_to=%d\n",index_to);
+					vector<double> A, B, C, F, answer;
+					//left boundary point
+					if (this->vect_rectangle[i][index_from].type==0) { //const temperature
+						A.push_back(0.0);
+						B.push_back(0.0);
+						C.push_back(1.0);
+						F.push_back(this->vect_rectangle[i][index_from].value);
+					} else {
+						if (this->vect_rectangle[i][index_from].type==1) { //const heat flow
+                            A.push_back(0.0);
+                            B.push_back(this->thermal_conduction/this->h_x);
+                            C.push_back(-B.back());
+                            F.push_back(this->vect_rectangle[i][index_from].value*this->h_y);
+						} else {
+							A.push_back(0.0);
+							B.push_back(this->thermal_conduction/this->h_x);
+							C.push_back(-this->heat_transfer-B.back());
+							F.push_back(-this->heat_transfer*this->temperature_air);
+						}
+					}
+					for (int tmp_j=index_from+1;tmp_j<index_to;tmp_j++) {
+						double power=0.0;
+						for (int index_heat_source=0;index_heat_source<this->number_heat_source;index_heat_source++) {
+                            for (int k=0;k<(int)this->vect_heat_source[index_heat_source].size();k++) {
+								if (tau>=this->vect_heat_source[index_heat_source][k].time_start &&
+									tau<this->vect_heat_source[index_heat_source][k].time_finish &&
+									is_in_rectangle(&(this->vect_heat_source[index_heat_source][k].coord), this->min_x+j*this->h_x, this->min_y+j*this->h_y, this->h_x, this->h_y)) {
+									power+=this->vect_heat_source[index_heat_source][k].power;
+									break;
+								}
+							}
+						}
+						A.push_back(this->thermal_conduction/this->h_x/this->h_x);
+						B.push_back(A.back());
+						C.push_back(-2*A.back()-this->specific_heat*this->density/this->h_t);
+						F.push_back(this->specific_heat*this->density/this->h_t*(*U_1)[i][tmp_j]-power);
+					}
+					//right boundary point
+					if (this->vect_rectangle[i][index_to].type==0) {
+						A.push_back(0.0);
+						B.push_back(0.0);
+						C.push_back(1.0);
+						F.push_back(this->vect_rectangle[i][index_to].value);
+					} else {
+						if (this->vect_rectangle[i][index_to].type==1) {
+							A.push_back(this->thermal_conduction/this->h_x);
+                            B.push_back(0.0);
+                            C.push_back(-A.back());
+                            F.push_back(this->vect_rectangle[i][index_to].value*this->h_y);
+						} else {
+							A.push_back(this->thermal_conduction/this->h_x);
+							B.push_back(0.0);
+							C.push_back(-this->heat_transfer-A.back());
+							F.push_back(-this->heat_transfer*this->temperature_air);
+						}
+					}
+					answer.resize(A.size());
+					Tridiagonal_matrix_algo(&A, &B, &C, &F, &answer);
+                    for (int tmp_j=index_from;tmp_j<=index_to;tmp_j++) {
+						(*U_2)[i][tmp_j]=answer[tmp_j-index_from];
+					}
+					J=j;
+				}
+			}
+        }
+	} else { //OY
+        for (int j=0;j<this->n_x;j++) {
+			int i=0, index_from, index_to, I=0;
+			while (i<this->n_y) {
+				//find first not zero
+				for (;i<this->n_y && this->vect_rectangle[i][j].status==0;i++);
+				if (i==this->n_y-1) {
+					//empty
+					for (int tmp_i=I;tmp_i<i;tmp_i++) {
+						(*U_2)[tmp_i][j]=this->temperature_air;
+					}
+				} else {
+					index_from=i;
+					//printf("%d %d\n",i,j);
+					//find zero
+					for (;i<this->n_y && this->vect_rectangle[i][j].status!=0;i++);
+					index_to=i-1;
+					//printf("index_to=%d\n",index_to);
+					vector<double> A, B, C, F, answer;
+					//left boundary point
+					if (this->vect_rectangle[index_from][j].type==0) { //const temperature
+						A.push_back(0.0);
+						B.push_back(0.0);
+						C.push_back(1.0);
+						F.push_back(this->vect_rectangle[index_from][j].value);
+					} else {
+						if (this->vect_rectangle[index_from][j].type==1) { //const heat flow
+                            A.push_back(0.0);
+                            B.push_back(this->thermal_conduction/this->h_y);
+                            C.push_back(-B.back());
+                            F.push_back(this->vect_rectangle[index_from][j].value*this->h_x);
+						} else {
+							A.push_back(0.0);
+							B.push_back(this->thermal_conduction/this->h_y);
+							C.push_back(-this->heat_transfer-B.back());
+							F.push_back(-this->heat_transfer*this->temperature_air);
+						}
+					}
+					for (int tmp_i=index_from+1;tmp_i<index_to;tmp_i++) {
+						double power=0.0;
+						for (int index_heat_source=0;index_heat_source<this->number_heat_source;index_heat_source++) {
+                            for (int k=0;k<(int)this->vect_heat_source[index_heat_source].size();k++) {
+								if (tau>=this->vect_heat_source[index_heat_source][k].time_start &&
+									tau<this->vect_heat_source[index_heat_source][k].time_finish &&
+									is_in_rectangle(&(this->vect_heat_source[index_heat_source][k].coord), this->min_x+j*this->h_x, this->min_y+j*this->h_y, this->h_x, this->h_y)) {
+									power+=this->vect_heat_source[index_heat_source][k].power;
+									break;
+								}
+							}
+						}
+						A.push_back(this->thermal_conduction/this->h_x/this->h_x);
+						B.push_back(A.back());
+						C.push_back(-2*A.back()-this->specific_heat*this->density/this->h_t);
+						F.push_back(this->specific_heat*this->density/this->h_t*(*U_1)[tmp_i][j]-power);
+					}
+					//right boundary point
+					if (this->vect_rectangle[index_to][j].type==0) {
+						A.push_back(0.0);
+						B.push_back(0.0);
+						C.push_back(1.0);
+						F.push_back(this->vect_rectangle[index_to][j].value);
+					} else {
+						if (this->vect_rectangle[index_to][j].type==1) {
+							A.push_back(this->thermal_conduction/this->h_y);
+                            B.push_back(0.0);
+                            C.push_back(-A.back());
+                            F.push_back(this->vect_rectangle[index_to][j].value*this->h_x);
+						} else {
+							A.push_back(this->thermal_conduction/this->h_y);
+							B.push_back(0.0);
+							C.push_back(-this->heat_transfer-A.back());
+							F.push_back(-this->heat_transfer*this->temperature_air);
+						}
+					}
+					answer.resize(A.size());
+					Tridiagonal_matrix_algo(&A, &B, &C, &F, &answer);
+                    for (int tmp_i=index_from;tmp_i<=index_to;tmp_i++) {
+						(*U_2)[tmp_i][j]=answer[tmp_i-index_from];
+					}
+					I=i;
+				}
+			}
+        }
+	}
 }
 
 void Polygon::solve() {
+	if (this->log) {
+		this->file_log=fopen("log.txt", "at+");
+	}
+
 	vector<vector<double> > U;
 	U.resize(this->n_y);
 	for (int i=0;i<n_y;i++) {
 		U[i].resize(this->n_x);
 		for (int j=0;j<n_x;j++) {
-			U[i][j]=this->temperature_initial;
+			U[i][j]=(this->vect_rectangle[i][j].status!=0) ? this->temperature_initial : this->temperature_air;
 		}
 	}
+	if (this->log) {
+		fprintf(this->file_log, "time=0.000 (0)\n");
+		for (int i=this->n_y-1;i>=0;i--) {
+			for (int j=0;j<this->n_x;j++) {
+				fprintf(this->file_log, "%.1lf ", U[i][j]);
+			}
+			fprintf(this->file_log, "\n");
+		}
+	}
+
 	for (int tau=0;tau<this->n_t;tau++) {
         vector<vector<double> > U1, U2;
         U1.resize(this->n_y);
@@ -501,17 +712,30 @@ void Polygon::solve() {
 				U1[i][j]=U[i][j];
 			}
 		}
-		get_tmp_solve(&U1,&U2,0);
+		get_tmp_answer(&U1,&U2,tau*this->h_t,0);
 		for (int i=0;i<this->n_y;i++) {
 			for (int j=0;j<this->n_x;j++) {
 				U1[i][j]=U2[i][j];
 			}
 		}
-		get_tmp_solve(&U1,&U2,1);
+		get_tmp_answer(&U1,&U2,tau*this->h_t,1);
 		for (int i=0;i<this->n_y;i++) {
 			for (int j=0;j<this->n_x;j++) {
 				U[i][j]=U2[i][j];
 			}
 		}
+		if (this->log) {
+			fprintf(this->file_log, "time=%.3lf (%d)\n",(tau+1)*this->h_t,tau+1);
+			for (int i=this->n_y-1;i>=0;i--) {
+				for (int j=0;j<this->n_x;j++) {
+					fprintf(this->file_log, "%.1lf ", U[i][j]);
+				}
+				fprintf(this->file_log, "\n");
+			}
+		}
+	}
+
+	if (this->log) {
+		fclose(this->file_log);
 	}
 }

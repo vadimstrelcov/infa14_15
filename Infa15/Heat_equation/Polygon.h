@@ -97,11 +97,13 @@ struct Heat_Source {
 struct Rectangle {
     char status, type;
     double value;
+    int index_line;
     Rectangle() {}
-    Rectangle(char status_, char type_, double value_) {
+    Rectangle(char status_, char type_, double value_, int index_line_) {
         status=status_;
         type=type_;
         value=value_;
+        index_line=index_line_;
     }
 };
 
@@ -120,6 +122,7 @@ private:
     double density, thermal_conduction, specific_heat, heat_transfer; // ro, lambda, c, a
     /*
     	for al 2700.0 kg/m^3, 203.5 W/m/K, 903.0 J/kg/K, 8.7 W/m^2/K
+            cu 8920,0 kg/m^3, 401.0 W/m/K, 385.0 J/kg/K, 8.7 W/m^2/K
     */
     double temperature_air, temperature_initial;
     int number_edges; //number of edges, points
@@ -133,6 +136,7 @@ private:
     double h_x, h_y, h_t;
     int n_x, n_y, n_t;
     vector<vector<Rectangle> > vect_rectangle; //n_y * n_x     0 - empty 1 - border 2 - within
+    void get_tmp_answer(vector<vector<double> >*, vector<vector<double> >*, double, bool);
 
 
 
