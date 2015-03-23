@@ -14,14 +14,14 @@ Polygon::Polygon() {
     //ctor
 }
 
-Polygon::Polygon(const char* file_name, const int N_x, const int N_y, const int N_t) {
+Polygon::Polygon(const char* file_name, bool log_, const int N_x, const int N_y, const int N_t) {
     FILE* f=fopen(file_name,"rt");
     if (f==NULL) {
         fprintf(stderr,"File \"%s\" does not exist", file_name);
         exit(1);
     } else {
 
-		this->log=1;
+		this->log=log_;
 
 		if (this->log) {
 			this->file_log=fopen("log.txt","wt");
@@ -44,11 +44,10 @@ Polygon::Polygon(const char* file_name, const int N_x, const int N_y, const int 
 				maximum time
 				number of heat sources and number of events
 				event:
-					id
-					heat source
+					id heat source
 					coordinates
-					start_time
-					finish_time
+					time_start
+					time_finish
 					power
         */
         fscanf(f,"density=%lf thermal_conduction=%lf specific_heat=%lf heat_transfer=%lf temperature_air=%lf\n",&(this->density), &(this->thermal_conduction), &(this->specific_heat), &(this->heat_transfer), &(this->temperature_air));
@@ -129,7 +128,8 @@ Polygon::Polygon(const char* file_name, const int N_x, const int N_y, const int 
 		this->h_x=(this->max_x-this->min_x)/n_x;
 		this->h_y=(this->max_y-this->min_y)/n_y;
 		if (this->log) {
-			fprintf(this->file_log, "Grid: min_x=%.3lf min_y=%.3lf max_x=%.3lf max_y=%.3lf (%.3lfx%.3lf)\n",this->min_x, this->min_y, this->max_x, this->max_y, this->max_x-this->min_x, this->max_y-this->min_y);
+			fprintf(this->file_log, "Grid: min_x=%.3lf min_y=%.3lf max_x=%.3lf max_y=%.3lf (%.3lfx%.3lf) [%.3lfx%.3lf]\n",
+				this->min_x, this->min_y, this->max_x, this->max_y, this->max_x-this->min_x, this->max_y-this->min_y, this->h_x, this->h_y);
 		}
         //find the leftmost (and if there are several, than find the leftmost and lowest
         int index_left_point=0;
@@ -431,19 +431,51 @@ void Polygon::get_partition() {
 	for (int i=0;i<n_y;i++) {
 		for (int j=0;j<n_x;j++) {
 			if (this->vect_rectangle[i][j].status==1) {
-				double minl=1.0e+100;
-				int index=-1;
-				for (int k=0;k<this->number_edges;k++) {
+				//calculate minl for all vertex of rectangle & find minimum
+				double minl[4];
+				int K[4];
+				for (int tmp=0;tmp<4;tmp++) {
+					minl[tmp]=1.0e+100;
+					K[tmp]=-1;
+				}
+				for (int tmp=0;tmp<4;tmp++) {
 					Point2D D(this->min_x+j*this->h_x, this->min_y+i*this->h_y);
-					double tmp_length=fabs(this->vect_lines[k].a*D.x+this->vect_lines[k].b*D.y+this->vect_lines[k].c)/sqrt(this->vect_lines[k].a*this->vect_lines[k].a+this->vect_lines[k].b*this->vect_lines[k].b);
-					if (minl-tmp_length>-epsilon) {
-						index=k;
-						minl=tmp_length;
+					if (tmp==1) {
+						D.x+=this->h_x;
+					} else {
+						if (tmp==2) {
+							D.y+=this->h_y;
+						} else {
+							if (tmp==3) {
+								D.x+=this->h_x;
+								D.y+=this->h_y;
+							}
+						}
+					}
+					for (int k=0;k<this->number_edges;k++) {
+						double tmp_length=fabs(this->vect_lines[k].a*D.x+this->vect_lines[k].b*D.y+this->vect_lines[k].c)/sqrt(this->vect_lines[k].a*this->vect_lines[k].a+this->vect_lines[k].b*this->vect_lines[k].b);
+						if (fabs(minl[tmp]-tmp_length)<epsilon) {
+							if (this->vect_edges[k].type<this->vect_edges[K[tmp]].type) {
+								K[tmp]=k;
+								minl[tmp]=tmp_length;
+							}
+						} else {
+							if (minl[tmp]-tmp_length>epsilon) {
+								K[tmp]=k;
+								minl[tmp]=tmp_length;
+							}
+						}
 					}
 				}
-				this->vect_rectangle[i][j].type=this->vect_edges[index].type;
-				this->vect_rectangle[i][j].value=this->vect_edges[index].value;
-				this->vect_rectangle[i][j].index_line=index;
+				int k=0;
+				for (int m=1;m<4;m++) {
+					if (minl[m]<minl[k]) {
+						k=m;
+					}
+				}
+				this->vect_rectangle[i][j].type=this->vect_edges[K[k]].type;
+				this->vect_rectangle[i][j].value=this->vect_edges[K[k]].value;
+				this->vect_rectangle[i][j].index_line=K[k];
 			}
 		}
 	}
@@ -469,7 +501,7 @@ void Polygon::get_partition() {
 				if (this->vect_rectangle[i][j].status==1 && this->vect_rectangle[i][j].type!=2) {
 					fprintf(this->file_log, "%.1lf ", this->vect_rectangle[i][j].value);
 				} else {
-					fprintf(this->file_log, "999 ");
+					fprintf(this->file_log, "999.9 ");
 				}
 			}
 			fprintf(this->file_log, "\n");
@@ -515,12 +547,15 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 			while (j<this->n_x) {
 				//find first not zero
 				for (;j<this->n_x && this->vect_rectangle[i][j].status==0;j++);
-				if (j==this->n_x-1) {
+				if (j==this->n_x) {
 					//empty
 					for (int tmp_j=J;tmp_j<j;tmp_j++) {
 						(*U_2)[i][tmp_j]=this->temperature_air;
 					}
 				} else {
+					for (int tmp_j=J;tmp_j<j;tmp_j++) {
+						(*U_2)[i][tmp_j]=this->temperature_air;
+					}
 					index_from=j;
 					//printf("%d %d\n",i,j);
 					//find zero
@@ -537,14 +572,14 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 					} else {
 						if (this->vect_rectangle[i][index_from].type==1) { //const heat flow
                             A.push_back(0.0);
-                            B.push_back(this->thermal_conduction/this->h_x);
+                            B.push_back(this->thermal_conduction/this->h_x); //lambda/h_x
                             C.push_back(-B.back());
                             F.push_back(this->vect_rectangle[i][index_from].value*this->h_y);
 						} else {
 							A.push_back(0.0);
-							B.push_back(this->thermal_conduction/this->h_x);
-							C.push_back(-this->heat_transfer-B.back());
-							F.push_back(-this->heat_transfer*this->temperature_air);
+							B.push_back(this->thermal_conduction/this->h_x); //lambda/h_x
+							C.push_back(-B.back()-this->heat_transfer*this->h_y);
+							F.push_back(-this->heat_transfer*this->temperature_air*this->h_y); //-a*U_air*h_y
 						}
 					}
 					for (int tmp_j=index_from+1;tmp_j<index_to;tmp_j++) {
@@ -553,16 +588,16 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
                             for (int k=0;k<(int)this->vect_heat_source[index_heat_source].size();k++) {
 								if (tau>=this->vect_heat_source[index_heat_source][k].time_start &&
 									tau<this->vect_heat_source[index_heat_source][k].time_finish &&
-									is_in_rectangle(&(this->vect_heat_source[index_heat_source][k].coord), this->min_x+j*this->h_x, this->min_y+j*this->h_y, this->h_x, this->h_y)) {
+									is_in_rectangle(&(this->vect_heat_source[index_heat_source][k].coord), this->min_x+tmp_j*this->h_x, this->min_y+i*this->h_y, this->h_x, this->h_y)) {
 									power+=this->vect_heat_source[index_heat_source][k].power;
 									break;
 								}
 							}
 						}
-						A.push_back(this->thermal_conduction/this->h_x/this->h_x);
+						A.push_back(this->thermal_conduction/this->h_x/this->h_x/2.0); //lambda/2.0/h_x^2
 						B.push_back(A.back());
-						C.push_back(-2*A.back()-this->specific_heat*this->density/this->h_t);
-						F.push_back(this->specific_heat*this->density/this->h_t*(*U_1)[i][tmp_j]-power);
+						C.push_back(-2.0*A.back()-this->specific_heat*this->density/this->h_t); //-2A.back()-c*ro/h_t
+						F.push_back(-A.back()*((*U_1)[i][tmp_j-1]+(*U_1)[i][tmp_j+1])+(*U_1)[i][tmp_j]*(2.0*A.back()-this->specific_heat*this->density/this->h_t)-power/**this->h_x*this->h_y*/);
 					}
 					//right boundary point
 					if (this->vect_rectangle[i][index_to].type==0) {
@@ -572,15 +607,15 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 						F.push_back(this->vect_rectangle[i][index_to].value);
 					} else {
 						if (this->vect_rectangle[i][index_to].type==1) {
-							A.push_back(this->thermal_conduction/this->h_x);
+							A.push_back(-this->thermal_conduction/this->h_x); //lambda/h_x
                             B.push_back(0.0);
                             C.push_back(-A.back());
                             F.push_back(this->vect_rectangle[i][index_to].value*this->h_y);
 						} else {
-							A.push_back(this->thermal_conduction/this->h_x);
+							A.push_back(this->thermal_conduction/this->h_x); //lambda/h_x
 							B.push_back(0.0);
-							C.push_back(-this->heat_transfer-A.back());
-							F.push_back(-this->heat_transfer*this->temperature_air);
+							C.push_back(-A.back()-this->heat_transfer*this->h_y);
+							F.push_back(-this->heat_transfer*this->temperature_air*this->h_y);
 						}
 					}
 					answer.resize(A.size());
@@ -598,12 +633,15 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 			while (i<this->n_y) {
 				//find first not zero
 				for (;i<this->n_y && this->vect_rectangle[i][j].status==0;i++);
-				if (i==this->n_y-1) {
+				if (i==this->n_y) {
 					//empty
 					for (int tmp_i=I;tmp_i<i;tmp_i++) {
 						(*U_2)[tmp_i][j]=this->temperature_air;
 					}
 				} else {
+					for (int tmp_i=I;tmp_i<i;tmp_i++) {
+						(*U_2)[tmp_i][j]=this->temperature_air;
+					}
 					index_from=i;
 					//printf("%d %d\n",i,j);
 					//find zero
@@ -611,7 +649,7 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 					index_to=i-1;
 					//printf("index_to=%d\n",index_to);
 					vector<double> A, B, C, F, answer;
-					//left boundary point
+					//down boundary point
 					if (this->vect_rectangle[index_from][j].type==0) { //const temperature
 						A.push_back(0.0);
 						B.push_back(0.0);
@@ -620,14 +658,14 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 					} else {
 						if (this->vect_rectangle[index_from][j].type==1) { //const heat flow
                             A.push_back(0.0);
-                            B.push_back(this->thermal_conduction/this->h_y);
+                            B.push_back(this->thermal_conduction/this->h_y); //lambda/h_y
                             C.push_back(-B.back());
                             F.push_back(this->vect_rectangle[index_from][j].value*this->h_x);
 						} else {
 							A.push_back(0.0);
-							B.push_back(this->thermal_conduction/this->h_y);
-							C.push_back(-this->heat_transfer-B.back());
-							F.push_back(-this->heat_transfer*this->temperature_air);
+							B.push_back(this->thermal_conduction/this->h_y); //lambda/h_y
+							C.push_back(-B.back()-this->heat_transfer*this->h_x);
+							F.push_back(-this->heat_transfer*this->temperature_air*this->h_x); //-a*U_air*h_x
 						}
 					}
 					for (int tmp_i=index_from+1;tmp_i<index_to;tmp_i++) {
@@ -636,18 +674,18 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
                             for (int k=0;k<(int)this->vect_heat_source[index_heat_source].size();k++) {
 								if (tau>=this->vect_heat_source[index_heat_source][k].time_start &&
 									tau<this->vect_heat_source[index_heat_source][k].time_finish &&
-									is_in_rectangle(&(this->vect_heat_source[index_heat_source][k].coord), this->min_x+j*this->h_x, this->min_y+j*this->h_y, this->h_x, this->h_y)) {
+									is_in_rectangle(&(this->vect_heat_source[index_heat_source][k].coord), this->min_x+j*this->h_x, this->min_y+tmp_i*this->h_y, this->h_x, this->h_y)) {
 									power+=this->vect_heat_source[index_heat_source][k].power;
 									break;
 								}
 							}
 						}
-						A.push_back(this->thermal_conduction/this->h_x/this->h_x);
+						A.push_back(this->thermal_conduction/this->h_y/this->h_y/2.0); //lambda/2.0/h_y^2
 						B.push_back(A.back());
-						C.push_back(-2*A.back()-this->specific_heat*this->density/this->h_t);
-						F.push_back(this->specific_heat*this->density/this->h_t*(*U_1)[tmp_i][j]-power);
+						C.push_back(-2.0*A.back()-this->specific_heat*this->density/this->h_t); //-2A.back()-c*ro/h_t
+						F.push_back(-A.back()*((*U_1)[tmp_i-1][j]+(*U_1)[tmp_i+1][j])+(*U_1)[tmp_i][j]*(2.0*A.back()-this->specific_heat*this->density/this->h_t)-power/**this->h_x*this->h_y*/);
 					}
-					//right boundary point
+					//up boundary point
 					if (this->vect_rectangle[index_to][j].type==0) {
 						A.push_back(0.0);
 						B.push_back(0.0);
@@ -655,15 +693,15 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 						F.push_back(this->vect_rectangle[index_to][j].value);
 					} else {
 						if (this->vect_rectangle[index_to][j].type==1) {
-							A.push_back(this->thermal_conduction/this->h_y);
+							A.push_back(this->thermal_conduction/this->h_y); //lambda/h_y
                             B.push_back(0.0);
                             C.push_back(-A.back());
                             F.push_back(this->vect_rectangle[index_to][j].value*this->h_x);
 						} else {
-							A.push_back(this->thermal_conduction/this->h_y);
+							A.push_back(this->thermal_conduction/this->h_y); //lambda/h_y
 							B.push_back(0.0);
-							C.push_back(-this->heat_transfer-A.back());
-							F.push_back(-this->heat_transfer*this->temperature_air);
+							C.push_back(-A.back()-this->heat_transfer*this->h_x);
+							F.push_back(-this->heat_transfer*this->temperature_air*this->h_x);
 						}
 					}
 					answer.resize(A.size());
@@ -678,10 +716,17 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 	}
 }
 
-void Polygon::solve() {
+void Polygon::solve(const int NX, const int NY, const int NT) {
+	if (this->n_x%NX!=0 || this->n_y%NY!=0 || this->n_t%NT!=0) {
+		fprintf(stderr, "Invalid input NX, NY, NT\n");
+		exit(1);
+	}
+
 	if (this->log) {
 		this->file_log=fopen("log.txt", "at+");
 	}
+
+	FILE* f=fopen("logg.txt","wt");
 
 	vector<vector<double> > U;
 	U.resize(this->n_y);
@@ -724,13 +769,43 @@ void Polygon::solve() {
 				U[i][j]=U2[i][j];
 			}
 		}
-		if (this->log) {
+
+		if (this->log && this->n_x*this->n_y<=10000 && ((tau+1)%10==0)) {
 			fprintf(this->file_log, "time=%.3lf (%d)\n",(tau+1)*this->h_t,tau+1);
 			for (int i=this->n_y-1;i>=0;i--) {
 				for (int j=0;j<this->n_x;j++) {
-					fprintf(this->file_log, "%.1lf ", U[i][j]);
+					if (this->vect_rectangle[i][j].status!=0) {
+						fprintf(this->file_log, "%3.1lf ", U[i][j]);
+					} else {
+						fprintf(this->file_log, "      ");
+					}
 				}
 				fprintf(this->file_log, "\n");
+			}
+		}
+
+		//Chingiz, it's your time!
+		if ((tau+1)%NT==0) {
+			fprintf(f, "time=%.3lf (%d)\n",(tau+1)*this->h_t,tau+1);
+			for (int i=this->n_y-1;i>=0;i-=NY) {
+				for (int j=0;j<this->n_x;j+=NX) {
+					double average=0.0;
+					int count=0;
+					for (int p=i;p>=0 && p>i-NY;p--) {
+						for (int q=j;q<this->n_x && q<j+NX;q++) {
+							if (this->vect_rectangle[p][q].status!=0) {
+								average+=U[p][q];
+								count++;
+							}
+						}
+					}
+					if (count>0) {
+						fprintf(f, "%3.1lf ", average/count);
+					} else {
+						fprintf(f, "      ");
+					}
+				}
+				fprintf(f, "\n");
 			}
 		}
 	}
@@ -738,4 +813,6 @@ void Polygon::solve() {
 	if (this->log) {
 		fclose(this->file_log);
 	}
+
+	fclose(f);
 }

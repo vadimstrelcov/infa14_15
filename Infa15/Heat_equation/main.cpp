@@ -15,11 +15,10 @@ int main(int argc, char** argv) {
 		input5: 100 100
 		input6: 100 100
 	*/
-    Polygon polygon("tests/input6.txt", 100, 100, 1000);
+    Polygon polygon("tests/input6.txt", 1, 100, 100, 1000);
    	printf("%d\n",(int)sizeof(Polygon));
     polygon.get_partition();
-    polygon.solve();
-
+    polygon.solve(5, 5, 100);
 
 	return 0;
 }

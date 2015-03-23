@@ -111,9 +111,9 @@ class Polygon
 {
 public:
     Polygon();
-    Polygon(const char*, const int, const int, const int);
+    Polygon(const char*, bool, const int, const int, const int);
     void get_partition();
-    void solve();
+    void solve(const int, const int, const int);
 
 protected:
 private:
