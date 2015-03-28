@@ -7,6 +7,8 @@
 int main(int argc, char** argv) {
 
 	printf("%d\n",(int)sizeof(Polygon));
+	double h_t=0.001;
+	int steps=100;
 	/*
 		input1: 60 60
 		input2: 65 55
@@ -15,10 +17,15 @@ int main(int argc, char** argv) {
 		input5: 100 100
 		input6: 100 100
 	*/
-    Polygon polygon("tests/input6.txt", 1, 100, 100, 1000);
-   	printf("%d\n",(int)sizeof(Polygon));
+    Polygon polygon("tests/input5.txt", 1, 20, 20, h_t);
+   	printf("%d\n",(int)sizeof(polygon));
     polygon.get_partition();
-    polygon.solve(5, 5, 100);
+
+
+    for (int count=0;count<1000;count++) {
+		polygon.solve(count*steps*h_t, steps);
+		printf("%d\n",count);
+	}
 
 	return 0;
 }

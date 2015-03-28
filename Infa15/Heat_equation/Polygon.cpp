@@ -14,7 +14,7 @@ Polygon::Polygon() {
     //ctor
 }
 
-Polygon::Polygon(const char* file_name, bool log_, const int N_x, const int N_y, const int N_t) {
+Polygon::Polygon(const char* file_name, bool log_, const int N_x, const int N_y, const double H_t) {
     FILE* f=fopen(file_name,"rt");
     if (f==NULL) {
         fprintf(stderr,"File \"%s\" does not exist", file_name);
@@ -224,12 +224,11 @@ Polygon::Polygon(const char* file_name, bool log_, const int N_x, const int N_y,
 
 		fscanf(f,"temperature_initial=%lf\n",&(this->temperature_initial));
 
-		fscanf(f,"time_max=%lf\n",&(this->time_max));
-		this->n_t=N_t;
-		this->h_t=this->time_max/N_t;
+		//fscanf(f,"time_max=%lf\n",&(this->time_max));
+		this->h_t=H_t;
 		if (this->log) {
 			fprintf(this->file_log, "Temperature_initial=%lf\n",this->temperature_initial);
-			fprintf(this->file_log, "Time_max=%lf dt=%lf\n",this->time_max, this->h_t);
+			fprintf(this->file_log, "dt=%lf\n", this->h_t);
 		}
 
 		int number_events;
@@ -272,8 +271,10 @@ Polygon::Polygon(const char* file_name, bool log_, const int N_x, const int N_y,
 
 		//initial all the rest variable
 		this->vect_rectangle.resize(n_y);
+		this->U.resize(n_y);
 		for (int i=0;i<this->n_y;i++) {
 			this->vect_rectangle[i].resize(n_x);
+			this->U[i].resize(n_x);
 			for (int j=0;j<this->n_x;j++) {
 				this->vect_rectangle[i][j].status=0;
 			}
@@ -417,6 +418,11 @@ void Polygon::get_partition() {
 			}
 		}
 	}
+	for (int i=0;i<this->n_y;i++) {
+		for (int j=0;j<this->n_x;j++) {
+			this->U[i][j]=(this->vect_rectangle[i][j].status!=0) ? this->temperature_initial : this->temperature_air;
+		}
+	}
 
 	if (this->log) {
 		fprintf(this->file_log, "Status:\n");
@@ -502,6 +508,20 @@ void Polygon::get_partition() {
 					fprintf(this->file_log, "%.1lf ", this->vect_rectangle[i][j].value);
 				} else {
 					fprintf(this->file_log, "999.9 ");
+				}
+			}
+			fprintf(this->file_log, "\n");
+		}
+	}
+
+	if (this->log) {
+		fprintf(this->file_log, "Initial temperature:\n");
+		for (int i=this->n_y-1;i>=0;i--) {
+			for (int j=0;j<this->n_x;j++) {
+				if (this->vect_rectangle[i][j].status!=0) {
+					fprintf(this->file_log, "%3.1lf ", U[i][j]);
+				} else {
+					fprintf(this->file_log, "      ");
 				}
 			}
 			fprintf(this->file_log, "\n");
@@ -716,37 +736,12 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 	}
 }
 
-void Polygon::solve(const int NX, const int NY, const int NT) {
-	if (this->n_x%NX!=0 || this->n_y%NY!=0 || this->n_t%NT!=0) {
-		fprintf(stderr, "Invalid input NX, NY, NT\n");
-		exit(1);
-	}
-
+void Polygon::solve(double time_start, const int NT) {
 	if (this->log) {
 		this->file_log=fopen("log.txt", "at+");
 	}
 
-	FILE* f=fopen("logg.txt","wt");
-
-	vector<vector<double> > U;
-	U.resize(this->n_y);
-	for (int i=0;i<n_y;i++) {
-		U[i].resize(this->n_x);
-		for (int j=0;j<n_x;j++) {
-			U[i][j]=(this->vect_rectangle[i][j].status!=0) ? this->temperature_initial : this->temperature_air;
-		}
-	}
-	if (this->log) {
-		fprintf(this->file_log, "time=0.000 (0)\n");
-		for (int i=this->n_y-1;i>=0;i--) {
-			for (int j=0;j<this->n_x;j++) {
-				fprintf(this->file_log, "%.1lf ", U[i][j]);
-			}
-			fprintf(this->file_log, "\n");
-		}
-	}
-
-	for (int tau=0;tau<this->n_t;tau++) {
+	for (int tau=0;tau<NT;tau++) {
         vector<vector<double> > U1, U2;
         U1.resize(this->n_y);
         U2.resize(this->n_y);
@@ -754,59 +749,29 @@ void Polygon::solve(const int NX, const int NY, const int NT) {
 			U1[i].resize(this->n_x);
 			U2[i].resize(this->n_x);
 			for (int j=0;j<n_x;j++) {
-				U1[i][j]=U[i][j];
+				U1[i][j]=this->U[i][j];
 			}
 		}
-		get_tmp_answer(&U1,&U2,tau*this->h_t,0);
+		get_tmp_answer(&U1,&U2,time_start+tau*this->h_t,0);
+		get_tmp_answer(&U2,&U1,time_start+tau*this->h_t,1);
 		for (int i=0;i<this->n_y;i++) {
 			for (int j=0;j<this->n_x;j++) {
-				U1[i][j]=U2[i][j];
+				this->U[i][j]=U1[i][j];
 			}
 		}
-		get_tmp_answer(&U1,&U2,tau*this->h_t,1);
-		for (int i=0;i<this->n_y;i++) {
+	}
+
+	if (this->log) {
+		fprintf(this->file_log, "time=%.3lf\n", time_start+(double)NT*this->h_t);
+		for (int i=this->n_y-1;i>=0;i--) {
 			for (int j=0;j<this->n_x;j++) {
-				U[i][j]=U2[i][j];
-			}
-		}
-
-		if (this->log && this->n_x*this->n_y<=10000 && ((tau+1)%10==0)) {
-			fprintf(this->file_log, "time=%.3lf (%d)\n",(tau+1)*this->h_t,tau+1);
-			for (int i=this->n_y-1;i>=0;i--) {
-				for (int j=0;j<this->n_x;j++) {
-					if (this->vect_rectangle[i][j].status!=0) {
-						fprintf(this->file_log, "%3.1lf ", U[i][j]);
-					} else {
-						fprintf(this->file_log, "      ");
-					}
+				if (this->vect_rectangle[i][j].status!=0) {
+					fprintf(this->file_log, "%3.1lf ", this->U[i][j]);
+				} else {
+					fprintf(this->file_log, "      ");
 				}
-				fprintf(this->file_log, "\n");
 			}
-		}
-
-		//Chingiz, it's your time!
-		if ((tau+1)%NT==0) {
-			fprintf(f, "time=%.3lf (%d)\n",(tau+1)*this->h_t,tau+1);
-			for (int i=this->n_y-1;i>=0;i-=NY) {
-				for (int j=0;j<this->n_x;j+=NX) {
-					double average=0.0;
-					int count=0;
-					for (int p=i;p>=0 && p>i-NY;p--) {
-						for (int q=j;q<this->n_x && q<j+NX;q++) {
-							if (this->vect_rectangle[p][q].status!=0) {
-								average+=U[p][q];
-								count++;
-							}
-						}
-					}
-					if (count>0) {
-						fprintf(f, "%3.1lf ", average/count);
-					} else {
-						fprintf(f, "      ");
-					}
-				}
-				fprintf(f, "\n");
-			}
+			fprintf(this->file_log, "\n");
 		}
 	}
 
@@ -814,5 +779,17 @@ void Polygon::solve(const int NX, const int NY, const int NT) {
 		fclose(this->file_log);
 	}
 
-	fclose(f);
+}
+
+double Polygon::get_temp_by_xy(double x, double y) {
+	if (x<this->min_x || x>this->max_x || y<this->min_y || y>this->max_y) {
+		return -1;
+	}
+	int i=(int)((y-this->min_y)/this->h_y);
+	int j=(int)((x-this->min_x)/this->h_x);
+	if (this->vect_rectangle[i][j].status==0) {
+		return -1;
+	} else {
+		return this->U[i][j];
+	}
 }

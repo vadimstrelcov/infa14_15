@@ -111,9 +111,10 @@ class Polygon
 {
 public:
     Polygon();
-    Polygon(const char*, bool, const int, const int, const int);
+    Polygon(const char*, bool, const int, const int, const double);
     void get_partition();
-    void solve(const int, const int, const int);
+    void solve(double, const int);
+    double get_temp_by_xy(double x, double y);
 
 protected:
 private:
@@ -128,17 +129,15 @@ private:
     int number_edges; //number of edges, points
     vector<Edge> vect_edges;
     vector<Point2D> vect_points;
-    double time_max;
     int number_heat_source;
     vector<Line> vect_lines;
     vector<vector<Heat_Source> > vect_heat_source;
     double max_x, max_y, min_x, min_y;
     double h_x, h_y, h_t;
-    int n_x, n_y, n_t;
+    int n_x, n_y;
     vector<vector<Rectangle> > vect_rectangle; //n_y * n_x     0 - empty 1 - border 2 - within
+    vector<vector<double> > U;
     void get_tmp_answer(vector<vector<double> >*, vector<vector<double> >*, double, bool);
-
-
 
 };
 
