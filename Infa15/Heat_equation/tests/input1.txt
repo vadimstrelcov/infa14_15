@@ -7,7 +7,6 @@ number_edges=6
 1.5 4.5 0.0 6.0 0 500.0
 0.0 6.0 0.0 0.0 0 500.0
 temperature_initial=500.0
-time_max=10000.0
 number_heat_source=7 events=9
 01 3.0 5.5 0.0 1000.0 1.0e+8
 02 3.0 3.0 0.0 1000.0 -2.0e+8

@@ -11,5 +11,4 @@ number_edges=10
 3.5 5.5 0.0 2.0 2
 0.0 2.0 2.0 0.0 2
 temperature_initial=500.0
-time_max=10000.0
 number_heat_source=0 events=0
