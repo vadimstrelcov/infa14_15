@@ -561,6 +561,12 @@ bool is_in_rectangle(Point2D* point, double x, double y, double h_x, double h_y)
 
 void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double> >* U_2, double tau, bool flag) {
 	if (flag==0) { //OX
+		const double K1=this->thermal_conduction/this->h_x,						//lambda/h_x
+					 K2=-K1-this->heat_transfer*this->h_y, 						//-lambda/h_x-a*h_y
+					 K3=-this->heat_transfer*this->temperature_air*this->h_y,   //-a*U_air*h_y
+					 K4=this->thermal_conduction/2.0/this->h_x/this->h_x, 		//lambda/(2h_x^2)
+					 K5=-2.0*K4-this->specific_heat*this->density/this->h_t,	//-2lambda/(2h_x^2)-c*ro/h_t
+					 K6=+2.0*K4-this->specific_heat*this->density/this->h_t;	//+2lambda/(2h_x^2)-c*ro/h_t
         for (int i=0;i<this->n_y;i++) {
 			int j=0, index_from, index_to, J=0;
 			while (j<this->n_x) {
@@ -591,14 +597,14 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 					} else {
 						if (this->vect_rectangle[i][index_from].type==1) { //const heat flow
                             A.push_back(0.0);
-                            B.push_back(this->thermal_conduction/this->h_x); //lambda/h_x
-                            C.push_back(-B.back());
+                            B.push_back(K1); //lambda/h_x
+                            C.push_back(-K1);
                             F.push_back(this->vect_rectangle[i][index_from].value*this->h_y);
 						} else {
 							A.push_back(0.0);
-							B.push_back(this->thermal_conduction/this->h_x); //lambda/h_x
-							C.push_back(-B.back()-this->heat_transfer*this->h_y);
-							F.push_back(-this->heat_transfer*this->temperature_air*this->h_y); //-a*U_air*h_y
+							B.push_back(K1); //lambda/h_x
+							C.push_back(K2); //-lambda/h_x-a*h_y
+							F.push_back(K3); //-a*U_air*h_y
 						}
 					}
 					for (int tmp_j=index_from+1;tmp_j<index_to;tmp_j++) {
@@ -613,10 +619,10 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 								}
 							}
 						}
-						A.push_back(this->thermal_conduction/this->h_x/this->h_x/2.0); //lambda/2.0/h_x^2
-						B.push_back(A.back());
-						C.push_back(-2.0*A.back()-this->specific_heat*this->density/this->h_t); //-2A.back()-c*ro/h_t
-						F.push_back(-A.back()*((*U_1)[i][tmp_j-1]+(*U_1)[i][tmp_j+1])+(*U_1)[i][tmp_j]*(2.0*A.back()-this->specific_heat*this->density/this->h_t)-power/**this->h_x*this->h_y*/);
+						A.push_back(K4); //lambda/2.0/h_x^2
+						B.push_back(K4);
+						C.push_back(K5); //-2lambda/(2h_x^2)-c*ro/h_t
+						F.push_back(-A.back()*((*U_1)[i][tmp_j-1]+(*U_1)[i][tmp_j+1])+(*U_1)[i][tmp_j]*K6-power);
 					}
 					//right boundary point
 					if (this->vect_rectangle[i][index_to].type==0) {
@@ -626,15 +632,15 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 						F.push_back(this->vect_rectangle[i][index_to].value);
 					} else {
 						if (this->vect_rectangle[i][index_to].type==1) {
-							A.push_back(-this->thermal_conduction/this->h_x); //lambda/h_x
+							A.push_back(-K1); //-lambda/h_x
                             B.push_back(0.0);
-                            C.push_back(-A.back());
+                            C.push_back(K1);
                             F.push_back(this->vect_rectangle[i][index_to].value*this->h_y);
 						} else {
-							A.push_back(this->thermal_conduction/this->h_x); //lambda/h_x
+							A.push_back(K1); //lambda/h_x
 							B.push_back(0.0);
-							C.push_back(-A.back()-this->heat_transfer*this->h_y);
-							F.push_back(-this->heat_transfer*this->temperature_air*this->h_y);
+							C.push_back(K2); //-lambda/h_x-a*h_y
+							F.push_back(K3); //-a*U_air*h_x
 						}
 					}
 					answer.resize(A.size());
@@ -647,6 +653,12 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 			}
         }
 	} else { //OY
+        const double K1=this->thermal_conduction/this->h_y,			    		//lambda/h_y
+					 K2=-K1-this->heat_transfer*this->h_x, 						//-lambda/h_y-a*h_x
+					 K3=-this->heat_transfer*this->temperature_air*this->h_x,   //-a*U_air*h_x
+					 K4=this->thermal_conduction/2.0/this->h_y/this->h_y,		//lambda/(2h_y^2)
+					 K5=-2.0*K4-this->specific_heat*this->density/this->h_t,	//-2lambda/(2h_y^2)-c*ro/h_t
+					 K6=+2.0*K4-this->specific_heat*this->density/this->h_t;	//+2lambda/(2h_y^2)-c*ro/h_t
         for (int j=0;j<this->n_x;j++) {
 			int i=0, index_from, index_to, I=0;
 			while (i<this->n_y) {
@@ -677,14 +689,14 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 					} else {
 						if (this->vect_rectangle[index_from][j].type==1) { //const heat flow
                             A.push_back(0.0);
-                            B.push_back(this->thermal_conduction/this->h_y); //lambda/h_y
-                            C.push_back(-B.back());
+                            B.push_back(K1); //lambda/h_y
+                            C.push_back(-K1);
                             F.push_back(this->vect_rectangle[index_from][j].value*this->h_x);
 						} else {
 							A.push_back(0.0);
-							B.push_back(this->thermal_conduction/this->h_y); //lambda/h_y
-							C.push_back(-B.back()-this->heat_transfer*this->h_x);
-							F.push_back(-this->heat_transfer*this->temperature_air*this->h_x); //-a*U_air*h_x
+							B.push_back(K1); //lambda/h_y
+							C.push_back(K2); //-lambda/h_y-ah_x
+							F.push_back(K3); //-a*U_air*h_x
 						}
 					}
 					for (int tmp_i=index_from+1;tmp_i<index_to;tmp_i++) {
@@ -699,10 +711,10 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 								}
 							}
 						}
-						A.push_back(this->thermal_conduction/this->h_y/this->h_y/2.0); //lambda/2.0/h_y^2
-						B.push_back(A.back());
-						C.push_back(-2.0*A.back()-this->specific_heat*this->density/this->h_t); //-2A.back()-c*ro/h_t
-						F.push_back(-A.back()*((*U_1)[tmp_i-1][j]+(*U_1)[tmp_i+1][j])+(*U_1)[tmp_i][j]*(2.0*A.back()-this->specific_heat*this->density/this->h_t)-power/**this->h_x*this->h_y*/);
+						A.push_back(K4); //lambda/2.0/h_y^2
+						B.push_back(K4);
+						C.push_back(K5); //-2(lambda/2.0/h_y^2)-c*ro/h_t
+						F.push_back(-A.back()*((*U_1)[tmp_i-1][j]+(*U_1)[tmp_i+1][j])+(*U_1)[tmp_i][j]*K6-power);
 					}
 					//up boundary point
 					if (this->vect_rectangle[index_to][j].type==0) {
@@ -712,15 +724,15 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 						F.push_back(this->vect_rectangle[index_to][j].value);
 					} else {
 						if (this->vect_rectangle[index_to][j].type==1) {
-							A.push_back(this->thermal_conduction/this->h_y); //lambda/h_y
+							A.push_back(K1); //lambda/h_y
                             B.push_back(0.0);
-                            C.push_back(-A.back());
+                            C.push_back(-K1);
                             F.push_back(this->vect_rectangle[index_to][j].value*this->h_x);
 						} else {
-							A.push_back(this->thermal_conduction/this->h_y); //lambda/h_y
+							A.push_back(K1); //lambda/h_y
 							B.push_back(0.0);
-							C.push_back(-A.back()-this->heat_transfer*this->h_x);
-							F.push_back(-this->heat_transfer*this->temperature_air*this->h_x);
+							C.push_back(K2); //-lambda/h_y-a*h_x
+							F.push_back(K3); //-a*U_air*h_x
 						}
 					}
 					answer.resize(A.size());
