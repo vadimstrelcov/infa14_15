@@ -122,8 +122,12 @@ private:
     FILE* file_log;
     double density, thermal_conduction, specific_heat, heat_transfer; // ro, lambda, c, a
     /*
-    	for al 2700.0 kg/m^3, 203.5 W/m/K, 903.0 J/kg/K, 8.7 W/m^2/K
-            cu 8920,0 kg/m^3, 401.0 W/m/K, 385.0 J/kg/K, 8.7 W/m^2/K
+    	for al  2700.0 kg/m^3, 203.5 W/m/K, 903.0 J/kg/K, 8.7 W/m^2/K
+            cu  8920.0 kg/m^3, 401.0 W/m/K, 385.0 J/kg/K, 8.7 W/m^2/K
+            fe  7874.0 kg/m^3,  80.0 W/m/K, 444.0 J/kg/K, 8.7 W/m^2/K
+            ag 10500.0 kg/m^3, 429.0 W/m/K, 234.0 J/kg/K, 8.7 W/m^2/K
+            sn  7310.0 kg/m^3,  67.0 W/m/K, 218.0 J/kg/K, 8.7 W/m^2/K
+            pb 11341.0 kg/m^3,  35.0 W/m/K, 130.0 J/kg/K, 8.7 W/m^2/K
     */
     double temperature_air, temperature_initial;
     int number_edges; //number of edges, points
