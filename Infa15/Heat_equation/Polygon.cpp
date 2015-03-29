@@ -796,10 +796,10 @@ double Polygon::get_temp_by_xy(double x, double y) {
 	if (x<this->min_x || x>this->max_x || y<this->min_y || y>this->max_y) {
 		return -1;
 	}
-	double fractpart, intpart;
-	fractpart=modf((y-this->min_y)/this->h_y, &intpart);
+	double intpart;
+	modf((y-this->min_y)/this->h_y, &intpart);
 	int i=(int)(intpart);
-	fractpart=modf((x-this->min_x)/this->h_x, &intpart);
+	modf((x-this->min_x)/this->h_x, &intpart);
 	int j=(int)(intpart);
 	if (this->vect_rectangle[i][j].status==0) {
 		return -1;
