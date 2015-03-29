@@ -224,7 +224,6 @@ Polygon::Polygon(const char* file_name, bool log_, const int N_x, const int N_y,
 
 		fscanf(f,"temperature_initial=%lf\n",&(this->temperature_initial));
 
-		//fscanf(f,"time_max=%lf\n",&(this->time_max));
 		this->h_t=H_t;
 		if (this->log) {
 			fprintf(this->file_log, "Temperature_initial=%lf\n",this->temperature_initial);
@@ -785,8 +784,11 @@ double Polygon::get_temp_by_xy(double x, double y) {
 	if (x<this->min_x || x>this->max_x || y<this->min_y || y>this->max_y) {
 		return -1;
 	}
-	int i=(int)((y-this->min_y)/this->h_y);
-	int j=(int)((x-this->min_x)/this->h_x);
+	double fractpart, intpart;
+	fractpart=modf((y-this->min_y)/this->h_y, &intpart);
+	int i=(int)(intpart);
+	fractpart=modf((x-this->min_x)/this->h_x, &intpart);
+	int j=(int)(intpart);
 	if (this->vect_rectangle[i][j].status==0) {
 		return -1;
 	} else {
