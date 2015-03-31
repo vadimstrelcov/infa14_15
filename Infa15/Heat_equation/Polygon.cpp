@@ -622,7 +622,7 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 						A.push_back(K4); //lambda/2.0/h_x^2
 						B.push_back(K4);
 						C.push_back(K5); //-2lambda/(2h_x^2)-c*ro/h_t
-						F.push_back(-A.back()*((*U_1)[i][tmp_j-1]+(*U_1)[i][tmp_j+1])+(*U_1)[i][tmp_j]*K6-power);
+						F.push_back(-K4*((*U_1)[i][tmp_j-1]+(*U_1)[i][tmp_j+1])+(*U_1)[i][tmp_j]*K6-power);
 					}
 					//right boundary point
 					if (this->vect_rectangle[i][index_to].type==0) {
@@ -632,9 +632,9 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 						F.push_back(this->vect_rectangle[i][index_to].value);
 					} else {
 						if (this->vect_rectangle[i][index_to].type==1) {
-							A.push_back(-K1); //-lambda/h_x
+							A.push_back(K1); //lambda/h_x
                             B.push_back(0.0);
-                            C.push_back(K1);
+                            C.push_back(-K1);
                             F.push_back(this->vect_rectangle[i][index_to].value*this->h_y);
 						} else {
 							A.push_back(K1); //lambda/h_x
@@ -714,7 +714,7 @@ void Polygon::get_tmp_answer(vector<vector<double> >* U_1, vector<vector<double>
 						A.push_back(K4); //lambda/2.0/h_y^2
 						B.push_back(K4);
 						C.push_back(K5); //-2(lambda/2.0/h_y^2)-c*ro/h_t
-						F.push_back(-A.back()*((*U_1)[tmp_i-1][j]+(*U_1)[tmp_i+1][j])+(*U_1)[tmp_i][j]*K6-power);
+						F.push_back(-K4*((*U_1)[tmp_i-1][j]+(*U_1)[tmp_i+1][j])+(*U_1)[tmp_i][j]*K6-power);
 					}
 					//up boundary point
 					if (this->vect_rectangle[index_to][j].type==0) {
@@ -752,24 +752,15 @@ void Polygon::solve(double time_start, const int NT) {
 		this->file_log=fopen("log.txt", "at+");
 	}
 
+	vector<vector<double> > tmpU;
+	tmpU.resize(this->n_y);
+	for (int i=0;i<this->n_y;i++) {
+		tmpU[i].resize(this->n_x);
+	}
+
 	for (int tau=0;tau<NT;tau++) {
-        vector<vector<double> > U1, U2;
-        U1.resize(this->n_y);
-        U2.resize(this->n_y);
-        for (int i=0;i<n_y;i++) {
-			U1[i].resize(this->n_x);
-			U2[i].resize(this->n_x);
-			for (int j=0;j<n_x;j++) {
-				U1[i][j]=this->U[i][j];
-			}
-		}
-		get_tmp_answer(&U1,&U2,time_start+tau*this->h_t,0);
-		get_tmp_answer(&U2,&U1,time_start+tau*this->h_t,1);
-		for (int i=0;i<this->n_y;i++) {
-			for (int j=0;j<this->n_x;j++) {
-				this->U[i][j]=U1[i][j];
-			}
-		}
+		get_tmp_answer(&(this->U),&tmpU,time_start+tau*this->h_t,0);
+		get_tmp_answer(&tmpU,&(this->U),time_start+tau*this->h_t,1);
 	}
 
 	if (this->log) {
