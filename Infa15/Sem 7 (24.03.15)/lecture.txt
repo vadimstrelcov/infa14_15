@@ -1,0 +1,20 @@
+Обработчик ошибок (исключительных ситуаций)
+throw значение (вещественное, целочисленное, строка...)
+
+try {
+    if (a==0) throw 1;
+    c=b/a;
+}
+catch (int e) {
+    std::cout << "e=" << e <<std::endl;
+}
+
+
+#include <exception>
+bad_alloc!
+try {
+    int* a=new int(10);
+}
+catch () {
+    return;
+}
