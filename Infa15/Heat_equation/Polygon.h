@@ -115,7 +115,8 @@ public:
     void get_partition();
     void solve(double, const int);
     double get_temp_by_xy(double x, double y);
-
+    double get_temp_max();
+    double get_temp_min();
 protected:
 private:
     bool log;
@@ -129,7 +130,7 @@ private:
             sn  7310.0 kg/m^3,  67.0 W/m/K, 218.0 J/kg/K, 8.7 W/m^2/K
             pb 11341.0 kg/m^3,  35.0 W/m/K, 130.0 J/kg/K, 8.7 W/m^2/K
     */
-    double temperature_air, temperature_initial;
+    double temperature_air, temperature_initial, temperature_max, temperature_min;
     int number_edges; //number of edges, points
     vector<Edge> vect_edges;
     vector<Point2D> vect_points;

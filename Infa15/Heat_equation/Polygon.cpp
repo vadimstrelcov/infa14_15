@@ -278,8 +278,8 @@ Polygon::Polygon(const char* file_name, bool log_, const int N_x, const int N_y,
 				this->vect_rectangle[i][j].status=0;
 			}
 		}
-
-
+		this->temperature_max=this->temperature_initial;
+		this->temperature_min=this->temperature_initial;
     }
 }
 
@@ -762,6 +762,21 @@ void Polygon::solve(double time_start, const int NT) {
 		get_tmp_answer(&(this->U),&tmpU,time_start+tau*this->h_t,0);
 		get_tmp_answer(&tmpU,&(this->U),time_start+tau*this->h_t,1);
 	}
+	double temp_max=this->U[0][0];
+	double temp_min=this->U[0][0];
+	for (int i=0;i<this->n_y;i++) {
+		for (int j=0;j<this->n_x;j++) {
+			if (this->U[i][j]>temp_max) {
+				temp_max=this->U[i][j];
+			} else {
+				if (this->U[i][j]<temp_min) {
+					temp_min=this->U[i][j];
+				}
+			}
+		}
+	}
+	this->temperature_max=temp_max;
+	this->temperature_min=temp_min;
 
 	if (this->log) {
 		fprintf(this->file_log, "time=%.3lf\n", time_start+(double)NT*this->h_t);
@@ -775,6 +790,7 @@ void Polygon::solve(double time_start, const int NT) {
 			}
 			fprintf(this->file_log, "\n");
 		}
+		fprintf(this->file_log, "%.3lf %.3lf\n", this->temperature_max, this->temperature_min);
 	}
 
 	if (this->log) {
@@ -797,4 +813,12 @@ double Polygon::get_temp_by_xy(double x, double y) {
 	} else {
 		return this->U[i][j];
 	}
+}
+
+double Polygon::get_temp_max() {
+	return this->temperature_max;
+}
+
+double Polygon::get_temp_min() {
+	return this->temperature_min;
 }
