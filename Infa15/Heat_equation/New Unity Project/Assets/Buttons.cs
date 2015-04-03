@@ -38,21 +38,21 @@ public class Buttons : MonoBehaviour {
 		if(GUI.Button(buttonPause,"Pause"))
 		{
 			(GameObject.Find ("/Main Camera/Graph 1")).GetComponent<Grapher2>().ExperiementOn = false;
-		}
+		}/*
 		Rect buttonStop = new Rect(
 			Screen.width*x/100f + 2.5f*(buttonWidth),
 			Screen.height*y/100f - (buttonHeight / 2),
 			buttonWidth,
 			buttonHeight
-			);
-		
+			);*/
+		/*
 		// Draw a button to stop the game
 		if(GUI.Button(buttonStop,"Stop"))
 		{
 			(GameObject.Find ("/Main Camera/Graph 1")).GetComponent<Grapher2>().ExperiementOn = false;
-			//(GameObject.Find ("/Main Camera/Graph 1")).GetComponent<Timer>().myTimer = 0;
+			(GameObject.Find ("/Main Camera/Graph 1")).GetComponent<Timer>().myTimer = 0;
 			//Drop calculations
-		}
+		}*/
 		}
 
 }

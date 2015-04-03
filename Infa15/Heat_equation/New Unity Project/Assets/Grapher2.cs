@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System;
-using System.Runtime.InteropServices;
+using System.Runtime.InteropServices; 
 public class Grapher2 : MonoBehaviour { 
 	[DllImport ("1" )] 
 	private static extern void Create_polygon( int aa,int log_, int N_x, int N_y, double N_t);
@@ -16,25 +16,31 @@ public class Grapher2 : MonoBehaviour {
 	[DllImport ("1" )] 
 	private static extern int Get_y ();
 	[DllImport ("1" )] 
-	private unsafe static extern void Solve(int NT,double * Temp);
-	[DllImport ("1" )] 
-	private static extern double Get_Temp_By_ij( int i,  int j);
+	private unsafe static extern void Solve(double time_start,int NT,double * Temp);
 	[DllImport ("1" )] 
 	private static extern double Get_Temp_By_xy( double x,  double y);
-	public int nx = 1,ny = 1;
-	public int q1=2;
-	public int q2=2;
+	[DllImport ("1" )] 
+	private static extern float get_temp_env();
+	[DllImport ("1" )] 
+	private static extern float get_temp_max();
+	[DllImport ("1" )] 
+	private static extern float get_temp_min();
+	private int nx = 1,ny = 1;
+	private int q1=2;
+	private int q2=2; 
+	private double time_start = 0;
 	public int resx,resy;
-	private float SMALL_TIME_STEP =  0.0001f;  
+	private float SMALL_TIME_STEP =  0.001f;  
 	private GameObject CLOCK;  
-	private int Time_steps = 5;
-
+	private int Time_steps = 10;
+	public float Tmin = 0; 
+	public float Tmax = 500;
 	
 	public bool ExperiementOn = false;
 	[Range(10, 100)] 
-	public int resolutionx = 70; 
+	public int resolutionx = 100; 
 	[Range(10, 100)] 
-	public int resolutiony = 70; 
+	public int resolutiony = 100; 
 	[Range(0.01f, 0.1f)] 
 	public float size = 0.05f; 
 	public float xk=1;
@@ -46,8 +52,10 @@ public class Grapher2 : MonoBehaviour {
 	private int currentResolutionx;
 	private int currentResolutiony;
 	public Vector2 scannedpoint = new Vector2(0.5f,0.5f); 
-	private ParticleSystem.Particle[] points;
+	private ParticleSystem.Particle[] points; 
 	private double []TT; 
+
+
 	private void CreatePoints () {
 		currentResolutiony = resolutiony;
 		currentResolutionx = resolutionx;
@@ -67,13 +75,13 @@ public class Grapher2 : MonoBehaviour {
 	void Start(){
 		GameObject Graph12 = (GameObject.Find ("/Main Camera/Graph 1"));
 		CLOCK = (GameObject.Find ("TimeTrue"));
-		Create_polygon (5, 1, 100, 100, (double)SMALL_TIME_STEP);
-		Debug.Log("Fu ");
-		Get_partition ();
-		Debug.Log("Fu 2");
+		Create_polygon (2, 0, 100, 100, (double)SMALL_TIME_STEP); 
+		Get_partition (); 
 		nx = Get_x ();
 		ny = Get_y (); 
 		TT  = new double[nx*ny]; 
+		for (int i = 0; i<nx*ny; i++)
+						TT [i] = 0;
 		if (nx <= 100) {
 			Graph12.GetComponent<Grapher2> ().resolutionx = nx;
 			resx = nx;
@@ -98,16 +106,11 @@ public class Grapher2 : MonoBehaviour {
 		Graph12.GetComponent<Grapher2> ().yk = (float)Get_height ();
 		(GameObject.Find ("SPP")).GetComponent<SPP>().xk=(float)Get_length ();
 		(GameObject.Find ("SPP")).GetComponent<SPP>().yk=(float)Get_height ();
-		
-		
 		SPP = (GameObject.Find ("SPP"));
 		Point = (GameObject.Find ("/Main Camera/scanned_point"));
 		Graph2 = (GameObject.Find ("/Main Camera/Graph 2"));
 		Graph = (GameObject.Find ("/Main Camera/Graph 1")).transform.position;
-		}
-	public float GetTemperature(Vector2 point)
-	{
-		return (float)Get_Temp_By_xy((double)(point.x*xk),(double)(point.y*yk));
+		(GameObject.Find ("Temp_env")).GetComponent<TextMesh> ().text = (get_temp_env()).ToString();
 	}
 	void Update () { 
 		if (currentResolutionx != resolutionx ||currentResolutiony != resolutiony || points == null) { 
@@ -125,50 +128,60 @@ public class Grapher2 : MonoBehaviour {
 					}
 				}
 		if (ExperiementOn) { 
-			int i;
 			unsafe {
-			fixed(double* qwe = &(TT[0])){
-						Solve (Time_steps,qwe);
-						CLOCK.GetComponent<Timer> ().delta = SMALL_TIME_STEP * Time_steps;
-						for (i = 0; i < points.Length; i++) { 
-							float Temp = (float)(*(qwe+i*8));
-							if (Temp > 0) points [i].color = RGBfromTemp (Temp); 
-							points [i].size = size;
+				fixed(double* qwe = &(TT[0])){ 
+					time_start += SMALL_TIME_STEP * Time_steps;
+					Solve (time_start,Time_steps,qwe); 
+					CLOCK.GetComponent<Timer> ().delta = SMALL_TIME_STEP * Time_steps;
+
+					for (int i = 0; i < points.Length; i++) { 
+						double Temp = TT[i] ;
+						if (Temp > 0) points [i].color = RGBfromTemp ((float)Temp); 
+						//points [i].color = new Color(1f,1f,0f); 
+						points [i].size = size;
+											}
 							}
-				}
-			}
+					}
 						particleSystem.SetParticles (points, points.Length); 
 				}
+		else{CLOCK.GetComponent<Timer> ().delta = 0f;}
 	}
+	
+	public float GetTemperature(Vector2 point)
+	{
+		return (float)Get_Temp_By_xy((double)(point.x*xk),(double)(point.y*yk));
+	}
+
 	Color RGBfromTemp(float T){ 
 		float R, G, B;
 		R = 0; G = 0; B = 0;
-		if (T < 150)
-			R = 1f / 150f;
-		if (T >= 150 && T<=320)
-			R = 1f ;
-		if (T > 320 && T<550)
-			R = 1f -1f/230f*(T-320);
-		if (T >= 550)
+		float tmin, tmax;
+		tmin = get_temp_min ();
+		tmax = get_temp_max ();
+		Tmax = tmax/* + 0.1f * (tmax - tmin)*/;
+		Tmin = tmin/* - 0.1f * (tmax - tmin)*/;
+		if (T>=Tmin && T < (Tmax+3*Tmin)/4) {
 			R = 0f;
+			G = 1f / ((Tmax-Tmin)/4)*T;
+			B = 1f;
+					}
+		if (T >= (Tmax+3*Tmin)/4 && T <= (Tmax+Tmin)/2) {
+			R = 0f;
+			G = 1f;
+			B = 1f - 1f/((Tmax-Tmin)/4)*(T-(Tmax+3*Tmin)/4);
+		}
+		if (T >(Tmax+Tmin)/2 && T < (3*Tmax+Tmin)/4) {
+			R = 1f / ((Tmax-Tmin)/4) * (T - (Tmax+Tmin)/2);
+			G = 1f;
+			B = 0f;
+					}
+		if (T>(3*Tmax+Tmin)/4 && T<=Tmax) {
+			R = 1f;
+			G = 1 - 1f/((Tmax-Tmin)/4)*(T-(3*Tmax+Tmin)/4);
+			B = 0f;
+		} 
 
-		if (T < 150)
-			G = 0f;
-		if (T >= 150 && T<=320)
-			G = 1f/170f*(T-150);
-		if (T > 320 && T<550)
-			G = 1f -1f/230f*(T-320);
-		if (T >= 550)
-			G = 0f;
-
-		if (T < 150)
-			B = 0f;
-		if (T >= 150 && T<=320)
-			B = 0f;
-		if (T > 320 && T<550)
-			B = 0f;
-		if (T >= 550)
-			B = 1f/200f*(T-550);
 		return new Color (R,G,B);
 	}
+
 }
