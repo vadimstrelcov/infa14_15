@@ -119,7 +119,7 @@ Polygon::Polygon(const char* file_name, bool log_, const int N_x, const int N_y,
 			if (this->vect_points[index].y>this->max_y) {
 				this->max_y=this->vect_points[index].y;
 			}
-			if (this->vect_points[index].x<this->min_y) {
+			if (this->vect_points[index].y<this->min_y) {
 				this->min_y=this->vect_points[index].y;
 			}
 		}
