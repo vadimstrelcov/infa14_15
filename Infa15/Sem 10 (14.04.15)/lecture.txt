@@ -1,0 +1,54 @@
+Вычислительный кластер DMP
+
+#include <mpi.h>
+Выполняются несколько потоков
+MPI_Init(&argc, &argv); //инициализация
+После только можно использовать параллельные функции
+MPI_Comm_rank(MPI_COMM_WORLD, &rank); //в int rank записывается индекс узла (потока)
+MPI_Comm_size(MPI_COMM_WORLD, &size); //в int size записывается общее количество узлов (потоков)
+MPI_Finalize(); //завершение программы
+
+Блокирующие и неблокирующие ссылки
+Блокирующие
+first		second
+send	->	recv
+blocked
+
+Неблокирующие
+first		second
+isend	->	irecv
+unblocked
+
+Example
+first		second
+send->	  <-send
+recv		recv
+
+Почти всегда лучше использовать блокирующие ссылки 
+Иначе, еще нужно использовать барьер
+
+MPI_Send(const void* buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm);
+	buf - указатель на буфер
+	count - число элементов в отправляемом буфере
+	datatype - тип передаваемых данных (MPI_INT, MPI_FLOAT, MPI_DOUBLE, MPI_LONG ...)
+	dest - номер процесса, которому мы отправляем
+	tag - тег сообщения
+	comm - коммуникатор
+
+MPI_Recv(const void* buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Status* status);
+	source - номер процесса, от которого мы передаем
+	status - определяем статус принятия. В наших задачах - MPI_STATUS_IGNORE
+
+MPI_ANY_TAG - получение с любым тегом
+MPI_ANY_SOURCE - получение от любого источника
+
+Для неблокирующих MPI_Isend(const void* buf, int count, MPI_Datatype datatype, int dest, int tag, MPI_Comm comm, MPI_Request* request), 
+				  MPI_Irecv(const void* buf, int count, MPI_Datatype datatype, int source, int tag, MPI_Comm comm, MPI_Request* request)
+	request=NULL в наших программах
+Компиляция mpicc main.c ...
+На C++: mpi++
+		mpic++
+		mpicpp
+		mpiCC
+Запуск: mpirun -np 8 ./prog //8 - число потоков, по умолчанию - 1
+
