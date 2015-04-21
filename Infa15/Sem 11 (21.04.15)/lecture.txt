@@ -1,0 +1,15 @@
+MPI_Bcast(void *buffer, int count, MPI_Datatype detatype, int root, MPI_Comm comm) - рассылает данные во все потоки, в том числе и себе
+	int root - откуда происходит рассылка (rank of broadcast root)
+
+MPI_Scatter(const void* sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm)
+	sendbuf - то, что будем рассылать (в том числе и себе)
+	sendcount - число отсылаемых элементов
+	sendtype - тип отсылаемых данных
+	recvbuf - куда сохранять данные	
+	recvcount - кол-во получаемых
+	recvtype - получаемый тип данных
+	root - ид рассылаемого процесса
+	comm - коммуникатор
+
+MPI_Gather(const void* sendbuf, int sendcount, MPI_Datatype sendtype, void *recvbuf, int recvcount, MPI_Datatype recvtype, int root, MPI_Comm comm)
+	root - куда записываем
