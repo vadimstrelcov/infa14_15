@@ -14,7 +14,8 @@ int main(int argc, char** argv) {
 		int j;
 		for (j=1;j<size;j++) {
 			double tmpS;
-			MPI_Recv(&tmpS, 1, MPI_DOUBLE, j, MPI_ANY_TAG, MPI_COMM_WORLD, NULL);
+			MPI_Status req;
+			MPI_Recv(&tmpS, 1, MPI_DOUBLE, j, MPI_ANY_TAG, MPI_COMM_WORLD, &req);
 			S+=tmpS;
 		}
 		printf("%lf\n", 4.0*S);				
