@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 		for (j=N/size*rank;j<N/size*(rank+1);j++) {
 			S+=dh*sqrt(1.0-j*j*dh*dh);
 		}
-		MPI_Send(&S, 1, MPI_DOUBLE, rank+1, MPI_ANY_TAG, MPI_COMM_WORLD);
+		MPI_Send(&S, 1, MPI_DOUBLE, 0, 11, MPI_COMM_WORLD);
 	}
 	MPI_Finalize();
 	return 0;
