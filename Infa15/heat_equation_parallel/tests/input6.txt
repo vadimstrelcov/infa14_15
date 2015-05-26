@@ -1,0 +1,9 @@
+density=2700.0 thermal_conduction=203.5 specific_heat=903.0 heat_transfer=8.7 temperature_air=300.0
+number_edges=4
+0.0 0.0 0.1 0.0 0 500.0
+0.1 0.0 0.1 0.1 2
+0.1 0.1 0.0 0.1 2
+0.0 0.1 0.0 0.0 2
+temperature_initial=500.0
+number_heat_source=1 events=1
+1 0.05 0.05 0.0 1000.0 1.0e+8
